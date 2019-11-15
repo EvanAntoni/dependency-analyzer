@@ -31,7 +31,7 @@ def get_resource_packages(output):
     # find lines with package info (e.g. bash-4.2.46-33.el7.x86_64 : The GNU Bourne Again shell)
     line_with_package_info = re.findall('.*-.*-.* : .*', output)
 
-    # extract packages names from the line and remove duplicates if exist
+    # extract full packages names from the line and remove duplicates if exist
     resource_packages_list = list(dict.fromkeys([line.split(' : ')[0] for line in line_with_package_info]))
 
     # remove inaccuracies from package name (e.g. 2:shadow-utils-4.6-5.el7.x86_64 to shadow-utils-4.6-5.el7.x86_64)
@@ -61,9 +61,10 @@ if __name__ == "__main__":
     rpm_resources_list = list(dict.fromkeys(command.splitlines()))
 
     for resource in rpm_resources_list:
-        # don't check rpm resources
+        # skip rpm resources
         if 'rpmlib' in resource:
             continue
+        # TODO: add error handling when information about dependency not found
         command = subprocess.check_output(["yum", "provides", "{}".format(resource)], universal_newlines=True)
 
         # get resource packages names from the yum output (e.g.
@@ -80,6 +81,7 @@ if __name__ == "__main__":
         if installed_package in resource_packages:
             print('Installed package: ' + installed_package)
         else:
+            # print if packages version not equal
             if pack_name in resource_packages[0]:
                 print('Installed package: ' + installed_package + '!!!')
         print()
