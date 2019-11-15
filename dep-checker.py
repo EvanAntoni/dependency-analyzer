@@ -1,13 +1,5 @@
 #!/usr/bin/env python
 
-"""
-1. Get package dependencies (rpm -qR jenkins) and transform it into the list
-2. Remove duplicates from the list
-3. Find a package that provides each resource in the list in the repositories (yum provides "resource_name")
-4. Figure out installed version of the package (rpm -qv jenkins)
-5. Compare version of the package that provide a resource and installed version of the package
-"""
-
 import subprocess, sys, argparse
 import re
 
@@ -27,6 +19,17 @@ def parse_args(arguments):
     return parser.parse_args(arguments[1:])
 
 def get_command_output(command):
+    """Execute command and return its output.
+
+    :param command: command (exec format)
+    :type command: list
+    :return: command output
+    :rtype: str
+
+    Execute command and return its output. If the return code is not 0, command
+    and its output with the return code will be printed.
+    """
+
     try:
         output = subprocess.check_output(command, universal_newlines=True)
         return output
@@ -38,6 +41,17 @@ def get_command_output(command):
 
 
 def get_resource_packages(output):
+    """Get packages which provide dependency.
+
+    :param output: output provided by yum provides package_name
+    :type output: str
+    :return: list of packages which provide dependency
+    :rtype: list
+
+    Parse `yum provides package_name` command output and extract names of packages
+    in the correct format (e.g. bash-4.2.46-33.el7.x86_64).
+    """
+
     # find lines with package info (e.g. bash-4.2.46-33.el7.x86_64 : The GNU Bourne Again shell)
     line_with_package_info = re.findall('.*-.*-.* : .*', output)
 
@@ -52,16 +66,47 @@ def get_resource_packages(output):
 
 
 def extract_package_name(full_package_name):
+    """Extract package name from the full package name.
+
+    :param full_package_name: full package name (with version, build number, and architecture)
+    :type full_package_name: str
+    :return: package name
+    :rtype: str
+
+    Take the full package name (e.g. shadow-utils-4.6-5.el7.x86_64)
+    and extract the package name from it (shadow-utils)
+    """
+
     return full_package_name.rsplit('-', 2)[0]
 
 
 def get_installed_package(package_name):
+    """Get package name which installed in the system.
+
+    :param package_name: package name
+    :type package_name: str
+    :return: full package name (with version, build number, and architecture)
+    :rtype: str
+
+    Get a full package name installed in the system by package name.
+    It uses for comparing a version of the package which dependency requires.
+    """
+
     command_exec = ["rpm", "-qv", package_name]
     full_package_name = get_command_output(command_exec).rstrip()
     return full_package_name
 
 
 def get_rpm_resources_list(package_name):
+    """Get a list of dependencies required for the package.
+
+    :param package_name: name of the package
+    :type package_name: str
+    :return: list with package dependencies
+    :rtype: list
+
+    Run `rpm -qR package_name` command and process its output to get a dependency list.
+    """
     command_exec = ["rpm", "-qR", package_name]
     resources_list_output = get_command_output(command_exec)
 
@@ -71,6 +116,19 @@ def get_rpm_resources_list(package_name):
 
 
 def process_rpm_resources_list(resources_list):
+    """Process package dependency list.
+
+    :param resources_list: list with package dependencies
+    :type resources_list: list
+
+    This is the main function of dependency processing. It gets dependency
+    check which package provides this dependency and compares the version
+    of this package with the package version installed in the system.
+    After this, it prints information about dependency its package and
+    highlight package name if there are differences between the required
+    dependency package version and version of the package installed in the system.
+    """
+
     for resource in resources_list:
         # skip rpm resources
         if 'rpmlib' in resource:
