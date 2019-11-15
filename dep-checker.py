@@ -8,8 +8,23 @@
 5. Compare version of the package that provide a resource and installed version of the package
 """
 
-import subprocess
+import subprocess, sys, argparse
 import re
+
+
+def parse_args(arguments):
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '-p', '--package',
+        help='package name for checking'
+    )
+
+    if len(arguments) == 1:
+        parser.print_help()
+        exit(1)
+
+    return parser.parse_args(arguments[1:])
 
 
 def get_resource_packages(output):
@@ -34,32 +49,37 @@ def get_installed_package(pac_name):
     full_package_name = subprocess.check_output(["rpm", "-qv", pac_name], universal_newlines=True).rstrip()
     return full_package_name
 
-# TODO: add error handling when package not found
-command = subprocess.check_output(["rpm", "-qR", "jenkins"], universal_newlines=True)
+if __name__ == "__main__":
+    argv = sys.argv
+    args = parse_args(argv)
+    package_to_check = args.package
 
-# create a list of package resources and remove duplicates from this list
-rpm_resources_list = list(dict.fromkeys(command.splitlines()))
+    # TODO: add error handling when package not found
+    command = subprocess.check_output(["rpm", "-qR", package_to_check], universal_newlines=True)
 
-for resource in rpm_resources_list:
-    # don't check rpm resources
-    if 'rpmlib' in resource:
-        continue
-    command = subprocess.check_output(["yum", "provides", "{}".format(resource)], universal_newlines=True)
+    # create a list of package resources and remove duplicates from this list
+    rpm_resources_list = list(dict.fromkeys(command.splitlines()))
 
-    # get resource packages names from the yum output (e.g.
-    # ['procps-ng-3.3.10-26.el7.i686', 'procps-ng-3.3.10-26.el7.x86_64', 'procps-ng-3.3.10-26.el7_7.1.i686'])
-    resource_packages = get_resource_packages(command)
+    for resource in rpm_resources_list:
+        # don't check rpm resources
+        if 'rpmlib' in resource:
+            continue
+        command = subprocess.check_output(["yum", "provides", "{}".format(resource)], universal_newlines=True)
 
-    # get short package name (e.g. openssl)
-    pack_name = extract_package_name(resource_packages[0])
+        # get resource packages names from the yum output (e.g.
+        # ['procps-ng-3.3.10-26.el7.i686', 'procps-ng-3.3.10-26.el7.x86_64', 'procps-ng-3.3.10-26.el7_7.1.i686'])
+        resource_packages = get_resource_packages(command)
 
-    # get full installed package name (e.g. bash-4.2.46-33.el7.x86_64)
-    installed_package = get_installed_package(pack_name)
-    print('Dependency: ' + resource)
-    print('Dependency packages: ', resource_packages)
-    if installed_package in resource_packages:
-        print('Installed package: ' + installed_package + '++++++')
-    else:
-        if pack_name in resource_packages[0]:
-            print('Installed package: ' + installed_package + '!!!!!!!')
-    print()
+        # get short package name (e.g. openssl or procps-ng)
+        pack_name = extract_package_name(resource_packages[0])
+
+        # get full installed package name (e.g. bash-4.2.46-33.el7.x86_64)
+        installed_package = get_installed_package(pack_name)
+        print('Dependency: ' + resource)
+        print('Dependency packages: ', resource_packages)
+        if installed_package in resource_packages:
+            print('Installed package: ' + installed_package)
+        else:
+            if pack_name in resource_packages[0]:
+                print('Installed package: ' + installed_package + '!!!')
+        print()
