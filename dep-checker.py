@@ -18,6 +18,34 @@ def parse_args(arguments):
 
     return parser.parse_args(arguments[1:])
 
+
+def colored_text(text, color):
+    """Transform text color in the terminal
+
+    :param text: text to transform
+    :type text: str
+    :param color: text color
+    :type color: str
+    :return: colored text
+    :rtype: str
+
+    Function gets a text and a color code which must be present in the dictionary with color codes.
+    Color code inserts at the start of the text and must be reset at the end on the default color
+    for the terminal.
+    """
+
+    colors = {
+        'blue': '\033[94m',
+        'green': '\033[92m',
+        'red': '\033[91m',
+        'clear': '\033[0m'
+    }
+
+    text_with_color = colors[color] + text + colors['clear']
+
+    return text_with_color
+
+
 def get_command_output(command):
     """Execute command and return its output.
 
@@ -153,13 +181,19 @@ def process_rpm_resources_list(resources_list):
         # get full installed package name (e.g. bash-4.2.46-33.el7.x86_64)
         installed_package = get_installed_package(pack_name)
         print('Dependency: ' + resource)
-        print('Dependency packages: ', resource_packages)
+        print('Dependency packages: ', end='')
+        for package in resource_packages:
+             if package == installed_package:
+                 print('"{}"'.format(colored_text(package, 'green')), end=' ')
+             else:
+                 print('"{}"'.format(package), end=' ')
+
         if installed_package in resource_packages:
-            print('Installed package: ' + installed_package)
+            print('\nInstalled package: ' + colored_text(installed_package, 'green'))
         else:
             # print if packages version not equal
             if pack_name in resource_packages[0]:
-                print('Installed package: ' + installed_package + '!!!')
+                print('\nInstalled package: ' + colored_text(installed_package, 'red'))
         print()
 
 
