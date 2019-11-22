@@ -108,21 +108,21 @@ def extract_package_name(full_package_name):
     return full_package_name.rsplit('-', 2)[0]
 
 
-def get_installed_package(package_name):
-    """Get package name which installed in the system.
+def get_installed_packages(package_name):
+    """Get packages names which installed in the system by a short package name.
 
-    :param package_name: package name
+    :param package_name: short package name (jenkins)
     :type package_name: str
-    :return: full package name (with version, build number, and architecture)
-    :rtype: str
+    :return: list of full package names (with version, build number, and architecture)
+    :rtype: list
 
-    Get a full package name installed in the system by package name.
+    Get full package names installed in the system by the short package name.
     It uses for comparing a version of the package which dependency requires.
     """
 
     command_exec = ["rpm", "-qv", package_name]
-    full_package_name = get_command_output(command_exec).rstrip()
-    return full_package_name
+    full_package_names = get_command_output(command_exec).rstrip().splitlines()
+    return full_package_names
 
 
 def get_rpm_resources_list(package_name):
@@ -179,22 +179,26 @@ def process_rpm_resources_list(resources_list):
         pack_name = extract_package_name(resource_packages[0])
 
         # get full installed package name (e.g. bash-4.2.46-33.el7.x86_64)
-        installed_package = get_installed_package(pack_name)
+        installed_packages = get_installed_packages(pack_name)
         print('Dependency: ' + resource)
         print('Dependency packages: ', end='')
         for package in resource_packages:
-             if package == installed_package:
+             if package in installed_packages:
                  print('"{}"'.format(colored_text(package, 'green')), end=' ')
              else:
                  print('"{}"'.format(package), end=' ')
 
-        if installed_package in resource_packages:
-            print('\nInstalled package: ' + colored_text(installed_package, 'green'))
-        else:
-            # print if packages version not equal
-            if pack_name in resource_packages[0]:
-                print('\nInstalled package: ' + colored_text(installed_package, 'red'))
-        print()
+        print('\nInstalled packages: ', end='')
+        inst_in_res = [pack for pack in installed_packages if pack in resource_packages]
+        for installed_package in installed_packages:
+            if installed_package in inst_in_res:
+                print('"{}"'.format(colored_text(installed_package, 'green')), end=' ')
+            else:
+                if pack_name in resource_packages[0]:
+                    print('"{}"'.format(colored_text(installed_package, 'red')), end=' ')
+                else:
+                    print('"{}"'.format(installed_package), end=' ')
+        print('\n', end='\n')
 
 
 if __name__ == "__main__":
